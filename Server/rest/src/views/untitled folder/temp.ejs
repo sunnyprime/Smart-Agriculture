@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Soil Moisture</title>
+<style> /* set the CSS */
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+div.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 60px;
+  height: 28px;
+  padding: 2px;
+  font: 12px sans-serif;
+  background: lightsteelblue;
+  border: 0px;
+  border-radius: 8px;
+}
+
+</style>
+<body background="/images/temp_bg.jpg">
+<h1 align="center">Soil Moisture Readings Chart</h1>
+<!-- load the d3.js library -->    	
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+// set the dimensions and margins of the graph
+var margin = {top: 20, right: 20, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// parse the date / time
+var parseTime = d3.timeParse("%d-%b-%y");
+var formatTime = d3.timeFormat("%e %B");
+//var list=[];
+
+// set the ranges
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+// define the line
+var valueline = d3.line()
+    .x(function(d) { return x(d.Date_Time); })
+    .y(function(d) { return y(d.SoilTemp); });
+
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+// append the svg obgect to the body of the page
+// appends a 'group' element to 'svg'
+// moves the 'group' element to the top left margin
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+
+//call express rest api to fetch data from mongodb    
+var url = 'http://192.168.43.76:3000/measurements'
+//var url = 'http://localhost:3000/measurements'
+
+d3.json(url, function(error, pop) {
+    if (error) throw error;
+    
+    var data = [];
+    
+    for (var prop in pop) {
+      if (pop.hasOwnProperty(prop)) { 
+      // or if (Object.prototype.hasOwnProperty.call(obj,prop)) for safety...
+      // console.log("prop: " + prop + " value: " + pop[prop])
+         data.push(pop[prop]);
+      }
+    }   
+ 
+// Get the data
+data.forEach(function(d) {
+    //list=d.Date_Time.split(" ");
+    //d.Date_Time = new Date(list[2]+" "+list[1]+" "+list[5]+" "+list[3]);
+    d.Date_Time = new Date(d.Date_Time);
+    d.SoilTemp = +d.SoilTemp;
+  });
+
+  // scale the range of the data
+  x.domain(d3.extent(data, function(d) { return d.Date_Time; }));
+  y.domain([0, d3.max(data, function(d) { return d.SoilTemp; })]);
+
+  // add the valueline path.
+  svg.append("path")
+     .data([data])
+     .attr("class", "line")
+     .attr("d", valueline);
+
+  // add the dots with tooltips
+  svg.selectAll("dot")
+     .data(data)
+   .enter().append("circle")
+     .attr("r", 5)
+     .attr("cx", function(d) { return x(d.Date_Time); })
+     .attr("cy", function(d) { return y(d.SoilTemp); })
+     .on("mouseover", function(d) {
+       div.transition()
+         .duration(200)
+         .style("opacity", .9);
+       div .html(
+         '<a href= "http://google.com">' + // The first <a> tag
+           //d.Date_Time + 
+	   formatTime(d.Date_Time) +
+         "</a>" +                          // closing </a> tag
+         "<br/>"  + d.SoilTemp)     
+         .style("left", (d3.event.pageX) + "px")             
+         .style("top", (d3.event.pageY - 28) + "px");
+       });
+
+  // add the X Axis
+  svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+      
+
+  // add the Y Axis
+  svg.append("g")
+      .call(d3.axisLeft(y));
+
+
+  // text label for the x axis
+  svg.append("text")             
+      .attr("transform",
+            "translate(" + (width/2) + " ," + 
+                           (height + margin.top + 10) + ")")
+      .style("text-anchor", "middle")
+      .text("Time");
+
+  // text label for the y axis
+  svg.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left)
+      .attr("x",0 - (height / 2))
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Moisture in %");      
+
+});
+
+</script>
+</body>
+
